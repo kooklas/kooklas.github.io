@@ -15,14 +15,6 @@
             background-color: #f0f8ff;
             color: #333;
         }
-         #start-page {
-            display: none;
-            margin: 0px;
-            padding: 0px;
-            justify-content: center;
-            align-items: center;
-            height: 100%;
-        }
         #game-page {
             display: none;
             margin: 0px;
@@ -107,16 +99,57 @@
         .tab:hover {
             background-color: rgba(255, 255, 255, 0.2);
         }
+        
         .content {
-            display: none;
-            padding: 20px;
-            flex-grow: 1;
-            position: relative;
-            text-align: center;
-        }
-        .content.active {
-            display: block;
-        }
+    display: none;
+    padding: 20px;
+    flex-grow: 1;
+    position: relative;
+    text-align: center;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: transform 0.5s ease, opacity 0.5s ease;
+}
+
+.content.active {
+    display: block;
+    transform: translateX(0);
+    opacity: 1;
+}
+
+@keyframes zoom-out {
+    from {
+        transform: scale(1);
+        opacity: 1;
+    }
+    to {
+        transform: scale(0);
+        opacity: 0;
+    }
+}
+
+@keyframes rotate-in {
+    from {
+        transform: rotateY(-90deg);
+        opacity: 0;
+    }
+    to {
+        transform: rotateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes rotate-out {
+    from {
+        transform: rotateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: rotateY(90deg);
+        opacity: 0;
+    }
+}
+
         .avatar {
             position: relative; /* تغییر به absolute */
             margin-top: 20px;
@@ -233,11 +266,6 @@
     </style>
 </head>
 <body>
-    <!-- صفحه استارت -->
-    <div id="start-page" class="active">
-        <button id="start-btn">Start</button>
-    </div>
-
     <div id="loading-page">
         <div>Loading...</div>
         <div class="energy-bar-container">
@@ -266,6 +294,10 @@
 
             <h1>Game</h1>
         </div>
+        <div class="content" id="upgrade-tab">
+            <h1>Upgrade</h1>
+            <p>This is the content of the Upgrade tab.</p>
+        </div>        
         <div class="content" id="tasks-tab">
             <h1>Tasks</h1>
             <ul>
@@ -311,10 +343,11 @@
 
         <div class="tab-bar">
             <div class="tab" data-tab="game-tab">Game</div>
+            <div class="tab" data-tab="upgrade-tab">Upgrade</div> <!-- تب جدید Upgrade -->
             <div class="tab" data-tab="tasks-tab">Tasks</div>
             <div class="tab" data-tab="friends-tab">Friends</div>
             <div class="tab" data-tab="comingsoon-tab">Coming Soon</div>
-        </div>
+        </div>        
     </div>
     <script>
         const startBtn = document.getElementById('start-btn');
@@ -332,9 +365,7 @@
         let currentLevel = 1;
         let levelUpProgress = 0;
     
-        startBtn.addEventListener('click', () => {
-    console.log("Start button clicked"); // اضافه کردن این خط
-    startPage.classList.remove('active');
+        window.addEventListener('load', () => {
     loadingPage.classList.add('active'); // نمایش صفحه لودینگ
     loadingPage.style.display = 'flex';
     let loadingBar = document.getElementById('loading-bar');
@@ -342,7 +373,6 @@
 
     // بارگذاری با انیمیشن
     const loadingInterval = setInterval(() => {
-        console.log(`Loading: ${width}%`); // اضافه کردن این خط
         if (width >= 100) {
             clearInterval(loadingInterval);
             loadingPage.classList.remove('active'); // مخفی کردن صفحه لودینگ
@@ -352,17 +382,31 @@
             width++;
             loadingBar.style.width = width + '%'; // به روز رسانی نوار لودینگ
         }
-    }, 50); // زمان هر افزایش عرض نوار لودینگ
+    }, 50);
 });
 
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                contents.forEach(content => content.classList.remove('active'));
-                const targetTab = tab.getAttribute('data-tab');
-                document.getElementById(targetTab).classList.add('active');
-            });
-        });
-    
+tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        const activeContent = document.querySelector('.content.active');
+        const targetTab = tab.getAttribute('data-tab');
+        const newContent = document.getElementById(targetTab);
+
+        if (activeContent !== newContent) {
+            if (activeContent) {
+                activeContent.style.transform = 'translateX(-100%)'; // حرکت به سمت چپ
+                activeContent.addEventListener('transitionend', () => {
+                    activeContent.classList.remove('active');
+                    activeContent.style.display = 'none'; // پنهان کردن محتوای قبلی
+                }, { once: true });
+            }
+
+            newContent.style.display = 'block'; // نمایش محتوای جدید
+            newContent.style.transform = 'translateX(0)'; // حرکت به موقعیت اصلی
+            newContent.classList.add('active');
+        }
+    });
+});
+
         copyReferralBtn.addEventListener('click', () => {
             const referralLink = document.getElementById('referral-link');
             navigator.clipboard.writeText(referralLink.innerText).then(() => {
@@ -433,7 +477,20 @@
     setTimeout(() => {
         pointPopup.remove();
     }, 1500);
+
+    // ارسال امتیاز به سرور
+    fetch('/api/updatePoints', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ points: points, level: currentLevel }),
+    })
+    .then(response => response.json())
+    .then(data => console.log('Points updated:', data))
+    .catch((error) => console.error('Error:', error));
 }
+
         function levelUp() {
             currentLevel += 1;
             levelUpProgress = 0;
