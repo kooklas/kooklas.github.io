@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Disney Toon Ton</title>
-    <button id="closeButton">بستن</button>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -361,7 +360,7 @@
         let points = 0;
         let username = "user123";  // نام کاربر واقعی
         let clickCount = 0; // شمارش کلیک‌ها
-        const bonusClickThreshold = 5; // هر 5 کلیک یک امتیاز اضافی
+        const bonusClickThreshold = 10; // هر 5 کلیک یک امتیاز اضافی
         let energy = 1000;
         let levelUpPoints = 1000;
         let currentLevel = 1;
@@ -387,9 +386,10 @@
     }, 50);
 });
 // فرض کنید که متغیرهای username و points در جایی از کد شما مقداردهی می‌شوند
-// بستن و ذخیره کردن اطلاعات هنگام کلیک بر روی دکمه بستن بازی
-document.getElementById('closeButton').addEventListener('click', function() {
-    // ارسال اطلاعات به سرور برای ذخیره‌سازی
+const saveInterval = 5000; // زمان ذخیره‌سازی هر ۵ ثانیه
+
+// تابع برای ذخیره‌سازی اطلاعات کاربر
+function saveUserData() {
     fetch('http://localhost:3000/api/updatePoints', {
         method: 'POST',
         headers: {
@@ -409,30 +409,61 @@ document.getElementById('closeButton').addEventListener('click', function() {
     .catch(error => {
         console.error('Error:', error);
     });
+}
 
-    // بستن پنجره بازی
-    window.close();
-});
-window.onbeforeunload = function() {
-    fetch('http://localhost:3000/api/updatePoints', {
+// ذخیره‌سازی اطلاعات کاربر در بازه‌های زمانی مشخص
+setInterval(saveUserData, saveInterval); // هر ۵ ثانیه اطلاعات را ذخیره می‌کند
+
+// بارگذاری داده‌های کاربر
+window.addEventListener('load', () => {
+    const loadingPage = document.getElementById('loading-page');
+    const gamePage = document.getElementById('game-page');
+
+    // بارگذاری اطلاعات کاربر از سرور
+    fetch('http://localhost:3000/api/getUserData', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, points }),
+        body: JSON.stringify({ username }),
     })
     .then(response => response.json())
-    .then(data => console.log('Game progress saved before unload:', data))
-    .catch(error => console.error('Error saving progress:', error));
-};
+    .then(data => {
+        if (data) {
+            points = data.points;
+            currentLevel = data.level;
+            energy = data.energy;
 
-window.addEventListener('beforeunload', function(event) {
-    const username = 'exampleUser'; // این را با نام کاربر واقعی جایگزین کنید
-    const score = 10; // این را با امتیاز واقعی جایگزین کنید
+            // به روز رسانی UI
+            document.getElementById('points-display').innerText = `Balance: ${points}`;
+            document.getElementById('user-level').innerText = `Level: ${currentLevel}`;
+            document.getElementById('energy-bar').style.width = `${(energy / 1000) * 100}%`;
+            document.getElementById('energy-text').innerText = `${energy}/1000`;
+        }
+        loadingPage.style.display = 'none'; // پنهان کردن صفحه لودینگ
+        gamePage.classList.add('active'); // نمایش صفحه بازی
+    })
+    .catch(error => console.error('Error fetching user data:', error));
 
-    navigator.sendBeacon('http://localhost:3000/api/updatePoints', JSON.stringify({ username, score }));
+    // شروع انیمیشن بارگذاری
+    loadingPage.classList.add('active');
+    loadingPage.style.display = 'flex';
+    let loadingBar = document.getElementById('loading-bar');
+    let width = 0;
+
+    // بارگذاری با انیمیشن
+    const loadingInterval = setInterval(() => {
+        if (width >= 100) {
+            clearInterval(loadingInterval);
+            loadingPage.classList.remove('active');
+            loadingPage.style.display = 'none';
+            gamePage.classList.add('active');
+        } else {
+            width++;
+            loadingBar.style.width = width + '%';
+        }
+    }, 50);
 });
-
 tabs.forEach(tab => {
     tab.addEventListener('click', () => {
         const activeContent = document.querySelector('.content.active');
